@@ -13,12 +13,17 @@ import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScope
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @Slf4j
 public class TelegramBotService extends TelegramLongPollingBot {
     private final BotConfig config;
+    boolean messageOrCommand = false;
+
+    String password = "";
 //    private User user;
 
     public TelegramBotService(BotConfig config) {
@@ -43,24 +48,33 @@ public class TelegramBotService extends TelegramLongPollingBot {
     public String getBotToken() {
         return config.getBotToken();
     }
-
+    Set<String> stringSet = new HashSet<>();
     @Override
     public void onUpdateReceived(Update update) {
         String messageText = update.getMessage().getText();
         long chatId = update.getMessage().getChatId();
         if (update.hasMessage() && update.getMessage().hasText()) {
-            switch (messageText) {
-                case "/start":
-                    start(chatId, update.getMessage().getChat().getFirstName());
-                    break;
-                case "/mydata":
-                    showProfile(chatId, update.getMessage().getChat());
-                    break;
-                case "/info":
-                    infoCommand(chatId, update.getMessage().getChat().getFirstName());
-                    break;
-                default:
-                    sendMessage(chatId, "Введите существующую команду");
+            if (!messageOrCommand) {
+                switch (messageText) {
+                    case "/start":
+                        start(chatId, update.getMessage().getChat().getFirstName());
+                        break;
+                    case "/mydata":
+                        showProfile(chatId, update.getMessage().getChat());
+                        break;
+                    case "/register":
+                        messageOrCommand = true;
+                        register(chatId, update.getMessage().getChat());
+                        break;
+                    case "/info":
+                        infoCommand(chatId, update.getMessage().getChat().getFirstName());
+                        break;
+                    default:
+                        sendMessage(chatId, "Введите существующую команду");
+                }
+            } else {
+                password = messageText;
+                messageOrCommand = false;
             }
         }
 
@@ -72,6 +86,12 @@ public class TelegramBotService extends TelegramLongPollingBot {
         sendMessage(chatId, result);
     }
 
+    public void register(long chatId, Chat chat) {
+        String result = "Введите пароль: ";
+        log.info("Чат с " + chat.getUserName() + " вызвал команду /register ");
+        sendMessage(chatId, result);
+    }
+
     public void infoCommand(long chatId, String userName) {
         String result = "Данный бот предназначен для тетстирования аутентификация пользователя и проверки защиты его данных";
         log.info("Чат с " + userName + " вызвал команду /info");
@@ -79,8 +99,12 @@ public class TelegramBotService extends TelegramLongPollingBot {
     }
 
     public void showProfile(long chatId, Chat chat) {
-        String result = "First Name: " + chat.getFirstName() + "\nLast Name: " + chat.getLastName() + "\nUser Name: " + chat.getUserName() + "\nBio: " + chat.getBio() + "\nэто данные пользователя которые можно узнать и хранить автоматически";
+        String result = "First Name: " + chat.getFirstName() + "\nLast Name: " + chat.getLastName() + "\nUser Name: " + chat.getUserName() + "\nBio: " + chat.getBio() + "\nПароль = " + password + "\nэто данные пользователя которые можно узнать и хранить автоматически";
         log.info("Чат с " + chat.getFirstName() + " вызвал команду /mydata");
+        log.info("Чат с " + chat.getUserName() + " - User Name");
+        log.info("Чат с " + chat.getFirstName() + " - First Name");
+        log.info("Чат с " + chat.getLastName() + " - Last Name");
+        log.info("Чат с " + chat.getBio() + " - Bio");
         sendMessage(chatId, result);
     }
 
